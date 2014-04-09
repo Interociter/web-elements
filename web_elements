@@ -1,0 +1,383 @@
+#from lib.html.snippets import make_div
+
+import re
+from uuid import uuid4
+
+
+def is_type(element, test_type):
+    type_list = element.element_type().split('_')
+    return test_type in type_list
+
+
+def make_div(div_id='', div_classes=[], content='', styles={}):
+    div_end_msg = ''
+
+    if div_id != '':
+        div_end_msg = '<!-- %s -->' % div_id
+        div_id = ' id="%s" ' % div_id
+    div_class = ''
+    if len(div_classes) > 0:
+        div_class = ' class="%s" ' % ' '.join(div_classes)
+    div_styles = ''
+    if len(styles) > 0:
+        div_styles = ' style="'
+        style_tmpl = '%s:%s;'
+        for key in styles.keys():
+            div_styles += style_tmpl % (key, styles[key])
+        div_styles += '"'
+    return_html = '<div %s %s %s>\n%s\n</div>%s\n' % (div_id, div_class, div_styles, content, div_end_msg)
+    return re.sub(' +', ' ', return_html)
+
+
+def neat_html(messy_html):
+    return_html = re.sub(' +', ' ', messy_html)
+    return_html = re.sub('\n+', '\n', return_html)
+    return return_html
+
+
+def join_html_list(element_list):
+    return_html = ''
+    for element in element_list:
+        return_html += element.html()
+        #       return_html += '%s\n' % element.html()
+    return return_html
+
+
+def unique_list(list, idfun=None):
+    if idfun is None:
+        def idfun(x): return x
+    seen = {}
+    return_list = []
+    for item in list:
+        marker = idfun(item)
+        if marker in seen:
+            continue
+        seen[marker] = 1
+        return_list.append(item)
+    return return_list
+
+
+def id_html(html_id):
+    if not html_id or html_id == '':
+        return ''
+    else:
+        return 'id="%s"' % html_id
+
+
+def styles_html(style_dict):
+    if len(style_dict) > 0:
+        html_styles_template = 'style="%s"'
+        style_list = []
+        for key in style_dict:
+            style_list.append("%s: %s;" % (key, style_dict[key]))
+        return html_styles_template % ' '.join(style_list)
+    else:
+        return ''
+
+
+def extra_html(extra_list):
+    if len(extra_list) > 0:
+        return ' %s  ' % ' '.join(extra_list)
+    else:
+        return ''
+
+
+def classes_html(class_list):
+    html_class = ''
+    if len(class_list) > 0:
+        html_class = ' class="%s" ' % ' '.join(class_list)
+    return html_class
+
+
+def attribute_html(attributes):
+    return_html = ''
+    #Do attributes need quotes
+    attribute_template = ' %s="%s"'
+    #    attribute_template = ' %s=%s'
+    for key in attributes:
+        if key == 'class':
+            value = ' '.join(attributes[key])
+        else:
+            value = attributes[key].replace('''"''', "'")
+        if key != 'id':
+            return_html += attribute_template % (key, value)
+
+    return return_html
+
+
+def data_bind_html(data_bind):
+    return_html = ''
+    if data_bind != '':
+        return_html = "data_sources-bind='%s'" % data_bind
+    return return_html
+
+
+def event_html(events):
+    return_html = ''
+    for trigger in events:
+        return_html += "%s='%s' " % (trigger, events[trigger])
+    return return_html
+
+
+def combine_element_htmls(list_of_elements, seperator=''):
+    html_list = []
+    for element in list_of_elements:
+        html_list.append(element.html())
+    return seperator.join(html_list)
+
+
+class HTMLElement(object):
+    __elementtype__ = 'base'
+
+    # def __init__(self, html_id, html_classes=None, attributes=None, styles=None, data_bind=""):
+    def __init__(self, html_id=None, class_list=None, attribute_dict=None, style_dict=None, data_bind="",
+                 extra_list=None):
+        self.html_id = html_id
+        self.__data_bind__ = data_bind or ""
+        self.__html_classes__ = class_list or []
+        self.__extra__list__ = extra_list or []
+        self.attributes = attribute_dict or {}
+        self.styles = style_dict or {}
+        #        self.header_javascripts     = [] #deprecated, transition to header_scripts
+        self.__page_enablers__ = []
+        self.__header_scripts__ = []
+        self.__doc_ready__ = []
+
+        self.__display__ = True
+
+    def element_type(self):
+        return self.__elementtype__
+
+    def __repr__(self):
+        return self.html()
+
+    def _repr_html_(self):
+        print "web_elements repr"
+        return self.html()
+
+    def add_extra(self, extra_string):
+        self.__extra__list__.append(extra_string)
+
+    def set_attribute(self, field, value):
+        self.attributes[field] = value
+
+    def set_style(self, style, value):
+        self.styles[style] = value
+
+    def add_html_class(self, class_name):
+        if class_name not in self.__html_classes__:
+            self.__html_classes__.append(class_name)
+
+    def html(self):
+        # placeholder method definition for inherited class
+        # self.action()
+        pass
+
+    def page_enablers(self):
+        #
+        # @summary: A list of flags indicating PageView enabled functionality.  For instance, enable jquery.
+        #
+        return self.__page_enablers__
+
+    def header_scripts(self):
+        return self.__header_scripts__
+
+    def styles_html(self):
+        return styles_html(self.styles)
+
+    def classes_html(self):
+        return classes_html(self.__html_classes__)
+
+    def attributes_html(self):
+        return attribute_html(self.attributes)
+
+    def data_bind_html(self):
+        return data_bind_html(self.__data_bind__)
+
+    def extra_html(self):
+        return extra_html(self.__extra__list__)
+
+    def id_html(self):
+        return id_html(self.html_id)
+
+    def common_html(self):
+        common_list = (
+            self.id_html(),
+            self.attributes_html(),
+            self.classes_html(),
+            self.styles_html(),
+            self.data_bind_html(),
+            self.extra_html(),
+        )
+
+        return " %s %s %s %s %s %s" % common_list
+
+
+class HTMLContent(object):
+    def __init__(self, html_string):
+        self.html_string = html_string
+        self.html_id = None
+
+    def html(self):
+        return self.html_string
+
+
+'''
+#=================================================================================================================================
+# SimpleElement Class
+#=================================================================================================================================
+'''
+
+
+class ProtoElement(HTMLElement):
+    # def __init__(self, html_id, html_tag, html='', html_classes=[], attributes={}, styles={}, data_bind=''):
+    def __init__(self, html_tag, html_id=None, html='', class_list=None, attribute_dict=None, style_dict=None,
+                 data_bind='',
+                 extra_list=None):
+        HTMLElement.__init__(self, html_id, class_list, attribute_dict, style_dict, data_bind, extra_list)
+        self.content = html
+
+        self.html_tag = html_tag
+
+
+    def html(self):
+        __template__ = '<%s %s %s %s %s %s>%s</%s>\n'
+        html_id = ''
+        if self.html_id and self.html_id != '':
+            html_id = 'id="%s"' % self.html_id
+
+        template_list = (
+            self.html_tag,
+            html_id,
+            self.classes_html(),
+            attribute_html(self.attributes),
+            self.extra_html(),
+            self.styles_html(),
+            self.content,
+            self.html_tag,
+        )
+
+        return neat_html(__template__ % template_list)
+
+
+class EmptyElement(HTMLElement):
+
+    def __init__(self, html_tag):
+        # HTMLElement.__init__(self, html_id=None, class_list=None, attribute_dict=None, style_dict=None, data_bind=None,
+        #                      extra_list=None)
+        HTMLElement.__init__(self)
+        self.html_tag = html_tag
+
+
+    def html(self):
+        __template__ = '<%s />\n'
+
+        return neat_html(__template__ % self.html_tag)
+
+
+class ContainerElement(HTMLElement):
+    def __init__(self, html_id=None, class_list=None, attribute_dict=None, style_dict=None, clear_float=False,
+                 data_bind="", extra_list=None, html_tag=None):
+        HTMLElement.__init__(self, html_id, class_list=class_list, attribute_dict=attribute_dict, style_dict=style_dict,
+                             data_bind=data_bind, extra_list=extra_list)
+        self.elements = {}
+        self.title = ''
+        self.header_javascripts = []
+        self.inline_javascripts = []
+        self.__tag__ = html_tag or "div"
+        self.__header_scripts__ = []
+        self.__page_enablers__ = []
+        self.element_order = []
+        self.__type_index__ = {}
+        self.__display__ = True
+        self.clear_float = clear_float
+
+    def add_element(self, element):
+        if element.html_id:
+            self.elements[element.html_id] = element
+            self.element_order.append(element.html_id)
+        else:
+            uuid_id = uuid4()
+            self.elements[uuid_id] = element
+            self.element_order.append(uuid_id)
+
+    def inline_js(self):
+        #
+        # @summary: Generate a list of scripts that the elements wants added inline.
+        #
+        return_js_list = self.inline_javascripts
+        for html_id in self.element_order:
+            if self.elements[html_id].element_type() != 'simple':
+                return_js_list.extend(self.__elements[html_id].inline_js())
+        return return_js_list
+
+    def page_enablers(self):
+        return_list = self.__page_enablers__
+        for html_id in self.element_order:
+            return_list.extend(self.elements[html_id].page_enablers())
+        return return_list
+
+    def header_scripts(self):
+        #
+        # @summary: Generate a list of scripts that the elements wants added to the header.
+        #
+
+        return_js_list = self.__header_scripts__
+        for html_id in self.element_order:
+            script_list = self.elements[html_id].header_scripts()
+            return_js_list.extend(script_list)
+        return return_js_list
+
+    def html(self):
+        #        return_html = ''
+        html_list = []
+        for html_id in self.element_order:
+            element = self.elements[html_id]
+
+            html_len = len(self.elements[html_id].html())
+            html_list.append(self.elements[html_id].html())
+
+        html_content = '\n'.join(html_list)
+        if self.clear_float:
+            html_content += make_div(div_classes=['clear_float'])
+
+        div_end_msg = '<!-- %s -->' % self.html_id
+
+        template_list = (
+            self.__tag__,
+            self.common_html(),
+            html_content,
+            self.__tag__,
+            div_end_msg,
+
+        )
+        return neat_html('<%s %s>\n%s\n</%s>%s\n' % template_list)
+
+
+class CSSSource(ProtoElement):
+    def __init__(self, source_url):
+        # attribu
+        attributes = {
+            'rel': '''stylesheet''',
+            'href': '''%s''' % source_url,
+            'type': '''text/css''',
+
+        }
+        ProtoElement.__init__(self, 'link', attribute_dict=attributes)
+
+
+class JavascriptElement(ProtoElement):
+    def __init__(self, wrapped_js, attribute_dict=None):
+        extra_list = ['''type="text/javascript"''']
+        ProtoElement.__init__(self, "script", html=wrapped_js, extra_list=extra_list, attribute_dict=attribute_dict)
+
+
+class JavascriptSource(ProtoElement):
+    def __init__(self, source_url):
+        # attribu
+        attributes = {
+            'type': '''text/javascript''',
+            'src': '''%s''' % source_url,
+
+        }
+        ProtoElement.__init__(self, 'script', attribute_dict=attributes)
